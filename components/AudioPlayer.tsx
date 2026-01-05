@@ -52,12 +52,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
   if (variant === 'bar') {
     return (
       <div className="w-full my-8">
-        <div className="relative group bg-slate-100/50 hover:bg-slate-100 transition-colors p-4 md:p-6 rounded-[2rem] border-2 border-slate-200 flex items-center gap-6 overflow-hidden">
+        <div className="relative group bg-slate-50 hover:bg-slate-100 transition-colors p-4 md:p-6 rounded-[2rem] border-2 border-slate-200 flex items-center gap-6 overflow-hidden">
           <button
             onClick={handlePlay}
             disabled={loading}
             className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 ${
-              playing ? 'bg-red-500' : 'bg-emerald-600 hover:bg-emerald-700'
+              playing ? 'bg-red-500' : 'bg-purple-600 hover:bg-purple-700'
             } disabled:opacity-50`}
           >
             {loading ? (
@@ -78,22 +78,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
           
           <div className="flex-1 space-y-2">
             <div className="flex justify-between items-center mb-1">
-              <span className="text-emerald-900 font-black uppercase tracking-widest text-[10px]">Ääniraita</span>
+              <span className="text-purple-900 font-black uppercase tracking-widest text-[10px]">Ääniraita</span>
               <span className="text-slate-400 font-bold text-[10px]">
                 {playing ? 'Toistetaan...' : loading ? 'Ladataan...' : 'Valmis'}
               </span>
             </div>
             <div className="h-3 bg-slate-200 rounded-full overflow-hidden relative">
               {playing && (
-                <div className="absolute inset-0 bg-emerald-500/20 animate-pulse"></div>
+                <div className="absolute inset-0 bg-purple-500/20 animate-pulse"></div>
               )}
               <div 
-                className={`h-full bg-emerald-600 transition-all duration-300 ${playing ? 'w-full' : 'w-0'}`} 
+                className={`h-full bg-purple-600 transition-all duration-300 ${playing ? 'w-full' : 'w-0'}`} 
                 style={{ transitionDuration: playing ? '60s' : '0.3s' }}
               ></div>
             </div>
             {loading && (
-              <p className="text-[10px] text-emerald-600 font-bold animate-pulse">Äänen valmistelu voi kestää hetken...</p>
+              <p className="text-[10px] text-purple-600 font-bold animate-pulse">Äänen valmistelu voi kestää hetken...</p>
             )}
           </div>
         </div>
@@ -107,7 +107,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
         onClick={handlePlay}
         disabled={loading}
         className={`flex flex-col items-center justify-center gap-3 w-40 h-40 rounded-full shadow-2xl transition-all border-8 border-white ${
-          playing ? 'bg-red-500 scale-105' : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105'
+          playing ? 'bg-red-500 scale-105' : 'bg-purple-600 hover:bg-purple-700 hover:scale-105'
         } disabled:opacity-50 active:scale-95`}
       >
         {loading ? (
@@ -134,7 +134,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
         )}
       </button>
       {loading && (
-        <p className="text-sm text-emerald-600 font-bold animate-pulse">Äänen valmistelu voi kestää hetken...</p>
+        <p className="text-sm text-purple-600 font-bold animate-pulse">Äänen valmistelu voi kestää hetken...</p>
       )}
     </div>
   );
