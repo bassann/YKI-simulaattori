@@ -1,7 +1,6 @@
+
 {
   "name": "YKI Simulaattori",
-  "description": "A comprehensive Finnish language proficiency testing platform simulating the YKI test for Perustaso and Keskitaso levels, covering Reading, Writing, Listening, and Speaking with AI-powered feedback.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "description": "Suomen kielen YKI-testin simulaattori perustasolle ja keskitasolle. Sisältää luku-, kirjoitus-, kuuntelu- ja puhetehtäviä tekoälypalautteella.",
+  "requestFramePermissions": []
 }

@@ -5,10 +5,10 @@ export enum TestLevel {
 }
 
 export enum TestPart {
-  READING = 'Reading',
-  LISTENING = 'Listening',
-  WRITING = 'Writing',
-  SPEAKING = 'Speaking'
+  READING = 'Luetun ymmärtäminen',
+  LISTENING = 'Kuullun ymmärtäminen',
+  WRITING = 'Kirjoittaminen',
+  SPEAKING = 'Puhuminen'
 }
 
 export interface Question {
@@ -27,7 +27,7 @@ export interface ReadingTask {
 
 export interface ListeningTask {
   transcript: string;
-  audioPrompt: string; // Text to be converted to TTS
+  audioPrompt: string;
   questions: Question[];
 }
 
@@ -54,5 +54,5 @@ export interface UserAnswers {
   reading: Record<string, string>;
   listening: Record<string, string>;
   writing: Record<number, string>;
-  speaking: Record<number, Blob | null>;
+  speaking: Record<number, any | null>;
 }

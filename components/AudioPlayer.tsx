@@ -4,9 +4,10 @@ import { generateAudio, decodeAudioData } from '../services/geminiService';
 
 interface AudioPlayerProps {
   text: string;
+  variant?: 'button' | 'bar';
 }
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ text }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) => {
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -25,7 +26,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text }) => {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       }
       
-      // Essential for some browsers to allow audio playback after initial interaction
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume();
       }
@@ -43,40 +43,92 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text }) => {
       setPlaying(true);
     } catch (err) {
       console.error("Audio playback error:", err);
-      alert("Virhe äänen toistossa. Yritä uudelleen.");
+      alert("Virhe äänen toistossa.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (variant === 'bar') {
+    return (
+      <div className="w-full my-8">
+        <div className="relative group bg-slate-100/50 hover:bg-slate-100 transition-colors p-4 md:p-6 rounded-[2rem] border-2 border-slate-200 flex items-center gap-6 overflow-hidden">
+          <button
+            onClick={handlePlay}
+            disabled={loading}
+            className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 ${
+              playing ? 'bg-red-500' : 'bg-emerald-600 hover:bg-emerald-700'
+            } disabled:opacity-50`}
+          >
+            {loading ? (
+              <svg className="animate-spin h-6 w-6 text-white" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : playing ? (
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </button>
+          
+          <div className="flex-1 space-y-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-emerald-900 font-black uppercase tracking-widest text-[10px]">Ääniraita</span>
+              <span className="text-slate-400 font-bold text-[10px]">{playing ? 'Toistetaan...' : loading ? 'Ladataan...' : 'Valmis'}</span>
+            </div>
+            <div className="h-3 bg-slate-200 rounded-full overflow-hidden relative">
+              {playing && (
+                <div className="absolute inset-0 bg-emerald-500/20 animate-pulse"></div>
+              )}
+              <div 
+                className={`h-full bg-emerald-600 transition-all duration-300 ${playing ? 'w-full' : 'w-0'}`} 
+                style={{ transitionDuration: playing ? '60s' : '0.3s' }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <button
-      onClick={handlePlay}
-      disabled={loading}
-      className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all ${
-        playing ? 'bg-red-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'
-      } disabled:opacity-50 active:scale-95`}
-    >
-      {loading ? (
-        <span className="flex items-center gap-2">
-          <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Ladataan...
-        </span>
-      ) : playing ? (
-        <>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>
-          Pysäytä
-        </>
-      ) : (
-        <>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          Kuuntele
-        </>
-      )}
-    </button>
+    <div className="flex justify-center w-full my-6">
+      <button
+        onClick={handlePlay}
+        disabled={loading}
+        className={`flex flex-col items-center justify-center gap-3 w-40 h-40 rounded-full shadow-2xl transition-all border-8 border-white ${
+          playing ? 'bg-red-500 scale-105' : 'bg-emerald-600 hover:bg-emerald-700 hover:scale-105'
+        } disabled:opacity-50 active:scale-95`}
+      >
+        {loading ? (
+          <div className="flex flex-col items-center gap-2">
+            <svg className="animate-spin h-8 w-8 text-white" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        ) : playing ? (
+          <>
+            <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <span className="text-white font-black uppercase tracking-tighter text-[10px]">Pysäytä</span>
+          </>
+        ) : (
+          <>
+            <svg className="w-12 h-12 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <span className="text-white font-black uppercase tracking-tighter text-[10px]">Toista</span>
+          </>
+        )}
+      </button>
+    </div>
   );
 };
 

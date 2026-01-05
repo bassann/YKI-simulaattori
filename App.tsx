@@ -10,6 +10,7 @@ const App: React.FC = () => {
   const [activePart, setActivePart] = useState<TestPart>(TestPart.READING);
   const [loading, setLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [hasKey, setHasKey] = useState<boolean>(true);
   const [userAnswers, setUserAnswers] = useState<UserAnswers>({
     reading: {},
     listening: {},
@@ -17,17 +18,36 @@ const App: React.FC = () => {
     speaking: { 0: null, 1: null }
   });
 
-  const resetTest = () => {
-    setLevel(null);
-    setTest(null);
-    setActivePart(TestPart.READING);
-    setIsSubmitted(false);
-    setUserAnswers({
-      reading: {},
-      listening: {},
-      writing: { 0: "", 1: "" },
-      speaking: { 0: null, 1: null }
-    });
+  const partOrder = [TestPart.READING, TestPart.LISTENING, TestPart.WRITING, TestPart.SPEAKING];
+
+  useEffect(() => {
+    const checkKey = async () => {
+      const aistudio = (window as any).aistudio;
+      const envKeyValid = typeof process.env.API_KEY === 'string' && 
+                          process.env.API_KEY !== 'undefined' && 
+                          process.env.API_KEY.length > 10;
+      if (aistudio) {
+        try {
+          const result = await aistudio.hasSelectedApiKey();
+          setHasKey(result || envKeyValid);
+        } catch (e) {
+          setHasKey(envKeyValid);
+        }
+      } else {
+        setHasKey(envKeyValid);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleOpenKeySelection = async () => {
+    const aistudio = (window as any).aistudio;
+    if (aistudio) {
+      try {
+        await aistudio.openSelectKey();
+        setHasKey(true);
+      } catch (e) { console.error(e); }
+    }
   };
 
   const startTest = async (selectedLevel: TestLevel) => {
@@ -36,74 +56,73 @@ const App: React.FC = () => {
     try {
       const generated = await generateTestContent(selectedLevel);
       setTest(generated);
-    } catch (err) {
-      console.error("Error starting test:", err);
-      alert("Testin luominen epäonnistui. Tämä johtuu yleensä API-avainvirheestä tai mallin rajoituksista. Yritä hetken kuluttua uudelleen.");
+    } catch (err: any) {
+      if (err.message?.includes("entity not found") || !hasKey) {
+        await handleOpenKeySelection();
+      } else {
+        alert("Virhe kokeen luomisessa.");
+      }
       setLevel(null);
-    } finally {
-      setLoading(false);
+    } finally { setLoading(false); }
+  };
+
+  const goToPart = (dir: 'next' | 'prev') => {
+    const currentIndex = partOrder.indexOf(activePart);
+    if (dir === 'next' && currentIndex < partOrder.length - 1) {
+      setActivePart(partOrder[currentIndex + 1]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (dir === 'prev' && currentIndex > 0) {
+      setActivePart(partOrder[currentIndex - 1]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleAnswerChange = (part: 'reading' | 'listening', qId: string, val: string) => {
-    setUserAnswers(prev => ({
-      ...prev,
-      [part]: { ...prev[part], [qId]: val }
-    }));
-  };
-
-  const handleWritingChange = (index: number, val: string) => {
-    setUserAnswers(prev => ({
-      ...prev,
-      writing: { ...prev.writing, [index]: val }
-    }));
-  };
-
-  const handleSubmit = () => {
-    setIsSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const renderPartIcon = (part: TestPart) => {
+    switch (part) {
+      case TestPart.READING: return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>;
+      case TestPart.LISTENING: return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>;
+      case TestPart.WRITING: return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
+      case TestPart.SPEAKING: return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>;
+    }
   };
 
   if (!level) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-emerald-50">
         <header className="text-center mb-12">
-          <h1 className="text-6xl font-black text-blue-900 mb-4 tracking-tighter drop-shadow-sm">SuomiPolku</h1>
-          <p className="text-xl text-slate-600 font-semibold max-w-md mx-auto">Simuloitu YKI-testi – harjoittele suomen kielen taitojasi missä vain.</p>
+          <div className="w-24 h-24 bg-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl transform rotate-3">
+             <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h1 className="text-7xl font-black text-emerald-900 mb-2 tracking-tighter">SuomiPolku</h1>
+          <p className="text-xl text-emerald-700/80 font-bold max-w-md mx-auto">Valloita YKI-testi tekoälyn voimalla.</p>
+          
+          {!hasKey && (
+            <button onClick={handleOpenKeySelection} className="mt-8 px-8 py-3 bg-white text-emerald-700 font-black rounded-full border-2 border-emerald-200 shadow-lg hover:bg-emerald-50 transition-all">
+              Määritä API-yhteys
+            </button>
+          )}
         </header>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
-          <button 
-            onClick={() => startTest(TestLevel.PERUSTASO)}
-            disabled={loading}
-            className="group relative bg-white p-10 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all border-2 border-transparent hover:border-blue-400 active:scale-95 text-left"
-          >
-            <span className="inline-block px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-black mb-6">TASO: ALKEET</span>
-            <h2 className="text-4xl font-black mb-3 text-slate-800">Perustaso</h2>
-            <p className="text-slate-500 leading-relaxed text-lg">YKI-testin tasot 1 ja 2. Sopii arkipäivän tilanteisiin.</p>
-            {loading && level === TestLevel.PERUSTASO && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 rounded-[2.5rem] z-10">
-                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="font-bold text-blue-600">Luodaan kysymyksiä...</p>
-              </div>
-            )}
-          </button>
-
-          <button 
-            onClick={() => startTest(TestLevel.KESKITASO)}
-            disabled={loading}
-            className="group relative bg-white p-10 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all border-2 border-transparent hover:border-indigo-400 active:scale-95 text-left"
-          >
-            <span className="inline-block px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-sm font-black mb-6">TASO: EDISTYNYT</span>
-            <h2 className="text-4xl font-black mb-3 text-slate-800">Keskitaso</h2>
-            <p className="text-slate-500 leading-relaxed text-lg">YKI-testin tasot 3 ja 4. Sopii työhön ja kansalaisuuteen.</p>
-            {loading && level === TestLevel.KESKITASO && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 rounded-[2.5rem] z-10">
-                <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="font-bold text-indigo-600">Generoidaan tekstejä...</p>
-              </div>
-            )}
-          </button>
+          {[TestLevel.PERUSTASO, TestLevel.KESKITASO].map(lvl => (
+            <button 
+              key={lvl}
+              onClick={() => startTest(lvl)}
+              disabled={loading}
+              className="group relative bg-white p-12 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all border-4 border-transparent hover:border-emerald-400 text-left active:scale-95"
+            >
+              <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black mb-6 uppercase tracking-widest ${lvl === TestLevel.PERUSTASO ? 'bg-emerald-100 text-emerald-700' : 'bg-green-100 text-green-700'}`}>{lvl}</span>
+              <h2 className="text-5xl font-black mb-4 text-slate-800">{lvl === TestLevel.PERUSTASO ? 'A1-A2' : 'B1-B2'}</h2>
+              <p className="text-slate-500 font-medium text-lg leading-relaxed">
+                {lvl === TestLevel.PERUSTASO ? 'Perustason kokeen harjoittelu arkielämän tilanteisiin.' : 'Keskitason kokeen simulointi töitä ja kansalaisuutta varten.'}
+              </p>
+              {loading && level === lvl && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 rounded-[3rem] z-10">
+                  <div className="w-14 h-14 border-6 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -111,334 +130,186 @@ const App: React.FC = () => {
 
   if (loading || !test) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 space-y-6 bg-slate-50 text-center">
-        <div className="relative w-24 h-24">
-          <div className="absolute inset-0 border-8 border-slate-200 rounded-full"></div>
-          <div className="absolute inset-0 border-8 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-        <div>
-          <p className="text-3xl font-black text-slate-800 tracking-tight">Valmistellaan koetta</p>
-          <p className="text-slate-500 mt-2 font-medium">Tämä voi kestää hetken – tekoäly rakentaa testin juuri sinulle.</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-emerald-50 text-center">
+        <div className="w-20 h-20 border-8 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-8"></div>
+        <h2 className="text-4xl font-black text-emerald-900 tracking-tight">Rakennetaan koetta...</h2>
+        <p className="text-emerald-700 font-bold mt-2">Gemini-tekoäly luo tehtäviä tasolle {level}.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
-      {/* Navigation Bar */}
-      <nav className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 px-4 md:px-8 py-4 shadow-sm">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={resetTest} 
-              className="text-blue-600 hover:text-blue-800 font-black text-2xl tracking-tighter active:scale-90 transition-transform"
-              title="Palaa alkuun"
-            >
-              SuomiPolku
-            </button>
-            <span className="px-3 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest">
-              {level}
-            </span>
-          </div>
+    <div className="min-h-screen bg-emerald-50/30 pb-32">
+      <nav className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-emerald-100 z-50 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <button onClick={() => setLevel(null)} className="text-emerald-700 font-black text-3xl tracking-tighter hover:scale-105 transition-transform">SuomiPolku</button>
           
-          <div className="flex gap-1.5 bg-slate-100 p-1 rounded-2xl overflow-x-auto w-full md:w-auto">
-            {Object.values(TestPart).map(part => (
+          <div className="flex gap-2 bg-emerald-100/50 p-1.5 rounded-2xl overflow-x-auto w-full md:w-auto">
+            {partOrder.map(part => (
               <button
                 key={part}
                 onClick={() => setActivePart(part)}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap uppercase tracking-wider ${
-                  activePart === part ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
+                  activePart === part ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-700/60 hover:text-emerald-800'
                 }`}
               >
-                {part}
+                {renderPartIcon(part)}
+                <span className="hidden sm:inline">{part}</span>
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            {!isSubmitted ? (
-              <button 
-                onClick={handleSubmit}
-                className="px-8 py-2.5 bg-blue-600 text-white font-black rounded-full hover:bg-blue-700 transition-all shadow-lg active:scale-95 text-sm"
-              >
-                PALAUTA
-              </button>
-            ) : (
-              <button 
-                onClick={resetTest}
-                className="px-8 py-2.5 bg-slate-800 text-white font-black rounded-full hover:bg-black transition-all shadow-lg active:scale-95 text-sm"
-              >
-                UUSI TESTI
-              </button>
-            )}
-          </div>
+          <button onClick={() => { setIsSubmitted(true); window.scrollTo({top:0, behavior:'smooth'}); }} className="px-8 py-3 bg-slate-900 text-white font-black rounded-full hover:bg-black transition-all text-sm shadow-xl">
+            {isSubmitted ? 'UUSI KOE' : 'PALAUTA'}
+          </button>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto p-4 md:p-8 space-y-12">
-        {/* Results Banner */}
-        {isSubmitted && (
-          <div className="bg-green-100 border-l-[12px] border-green-500 p-8 rounded-3xl shadow-xl shadow-green-900/5 animate-in fade-in slide-in-from-top duration-500">
-            <h2 className="text-3xl font-black text-green-900 mb-2 tracking-tight">Koe on valmis!</h2>
-            <p className="text-green-800 font-bold text-lg">Hienoa työtä. Katso alta palaute ja oikeat vastaukset.</p>
+      <main className="max-w-4xl mx-auto p-4 md:p-8 mt-12">
+        {activePart === TestPart.READING && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {test.reading.map((task, idx) => (
+              <div key={idx} className="bg-white rounded-[3rem] shadow-xl border border-emerald-100 overflow-hidden">
+                <div className="bg-emerald-900 p-10 text-white">
+                  <h3 className="text-4xl font-black tracking-tight">{task.title}</h3>
+                </div>
+                <div className="p-10 md:p-16 space-y-12">
+                  <p className="text-slate-700 leading-relaxed text-2xl font-medium whitespace-pre-wrap">{task.text}</p>
+                  <div className="space-y-12 pt-12 border-t-2 border-emerald-50">
+                    {task.questions.map(q => (
+                      <div key={q.id} className="space-y-8">
+                        <p className="font-black text-slate-900 text-2xl">{q.text}</p>
+                        <div className="grid gap-4">
+                          {q.options?.map(opt => (
+                            <label key={opt} className={`flex items-center p-6 rounded-3xl border-2 transition-all cursor-pointer ${
+                              isSubmitted && opt === q.correctAnswer ? 'bg-emerald-50 border-emerald-500 shadow-md ring-4 ring-emerald-100' :
+                              isSubmitted && userAnswers.reading[q.id] === opt ? 'bg-red-50 border-red-300' :
+                              userAnswers.reading[q.id] === opt ? 'bg-emerald-50 border-emerald-400' : 'hover:bg-slate-50 border-slate-200'
+                            }`}>
+                              <input type="radio" name={q.id} checked={userAnswers.reading[q.id] === opt} onChange={() => setUserAnswers(p => ({...p, reading: {...p.reading, [q.id]: opt}}))} disabled={isSubmitted} className="w-6 h-6 text-emerald-600" />
+                              <span className="ml-5 text-xl font-bold">{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Reading Section */}
-        {activePart === TestPart.READING && (
-          <section className="space-y-12 animate-in fade-in duration-300">
-            {test.reading.map((task, taskIdx) => (
-              <div key={taskIdx} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-50 p-8 border-b border-slate-200">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">{task.title}</h3>
-                </div>
-                <div className="p-8 md:p-14 space-y-10">
-                  <div className="prose prose-lg max-w-none">
-                    <p className="text-slate-700 leading-relaxed text-xl whitespace-pre-wrap font-medium">{task.text}</p>
-                  </div>
-                  
-                  <div className="space-y-10 pt-10 border-t border-slate-100">
-                    {task.questions.map((q) => (
-                      <div key={q.id} className="space-y-6">
-                        <p className="font-black text-slate-900 text-xl tracking-tight leading-snug">{q.text}</p>
-                        <div className="grid grid-cols-1 gap-4">
-                          {q.options?.map((opt, i) => {
-                            const isCorrect = isSubmitted && opt === q.correctAnswer;
-                            const isUserSelection = userAnswers.reading[q.id] === opt;
-                            const isIncorrectSelection = isSubmitted && isUserSelection && opt !== q.correctAnswer;
-
-                            return (
-                              <label key={i} className={`flex items-center p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                                isCorrect ? 'bg-green-50 border-green-500 shadow-md scale-[1.02]' :
-                                isIncorrectSelection ? 'bg-red-50 border-red-500 shadow-sm' :
-                                isUserSelection ? 'bg-blue-50 border-blue-400' :
-                                'hover:bg-slate-50 border-slate-200'
-                              }`}>
-                                <input
-                                  type="radio"
-                                  name={q.id}
-                                  value={opt}
-                                  disabled={isSubmitted}
-                                  checked={isUserSelection}
-                                  onChange={() => handleAnswerChange('reading', q.id, opt)}
-                                  className="w-6 h-6 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className={`ml-5 text-lg ${isCorrect ? 'font-black text-green-900' : isIncorrectSelection ? 'text-red-900 font-bold' : 'text-slate-700 font-semibold'}`}>
-                                  {opt}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {isSubmitted && task.sampleModelAnswer && (
-                    <div className="mt-12 p-10 bg-blue-50 rounded-[2rem] border-2 border-blue-100 shadow-inner">
-                      <h4 className="font-black text-blue-900 mb-4 text-xl tracking-tight uppercase">Vinkki & Selitys:</h4>
-                      <p className="text-blue-800 italic text-xl leading-relaxed">{task.sampleModelAnswer}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {/* Listening Section */}
         {activePart === TestPart.LISTENING && (
-          <section className="space-y-12 animate-in fade-in duration-300">
-            {test.listening.map((task, taskIdx) => (
-              <div key={taskIdx} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-100 p-10 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-                  <div>
-                    <h3 className="text-3xl font-black text-slate-800 tracking-tight">Kuuntelu {taskIdx + 1}</h3>
-                    <p className="text-slate-500 mt-2 font-bold uppercase text-xs tracking-widest">Paina nappia aloittaaksesi</p>
-                  </div>
-                  <AudioPlayer text={task.audioPrompt} />
-                </div>
-                <div className="p-8 md:p-14 space-y-14">
-                  <div className="space-y-12">
-                    {task.questions.map((q) => (
-                      <div key={q.id} className="space-y-6">
-                        <div className="flex items-start gap-5">
-                           <span className="flex-shrink-0 w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-xl rotate-3">?</span>
-                           <p className="font-black text-slate-900 text-2xl pt-1 tracking-tight">{q.text}</p>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 ml-16">
-                          {q.options?.map((opt, i) => {
-                            const isCorrect = isSubmitted && opt === q.correctAnswer;
-                            const isUserSelection = userAnswers.listening[q.id] === opt;
-                            const isIncorrectSelection = isSubmitted && isUserSelection && opt !== q.correctAnswer;
-
-                            return (
-                              <label key={i} className={`flex items-center p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                                isCorrect ? 'bg-green-50 border-green-500 ring-8 ring-green-100' :
-                                isIncorrectSelection ? 'bg-red-50 border-red-500' :
-                                isUserSelection ? 'bg-blue-50 border-blue-500 shadow-md' :
-                                'hover:bg-slate-50 border-slate-200'
-                              }`}>
-                                <input
-                                  type="radio"
-                                  name={q.id}
-                                  value={opt}
-                                  disabled={isSubmitted}
-                                  checked={isUserSelection}
-                                  onChange={() => handleAnswerChange('listening', q.id, opt)}
-                                  className="w-7 h-7 text-blue-600"
-                                />
-                                <span className={`ml-5 text-xl ${isCorrect ? 'font-black text-green-900' : isIncorrectSelection ? 'text-red-900 font-bold' : 'text-slate-700 font-bold'}`}>
-                                  {opt}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
+          <div className="space-y-12 animate-in fade-in duration-500">
+            {test.listening.map((task, idx) => (
+              <div key={idx} className="bg-white rounded-[3rem] shadow-xl border border-emerald-100 p-10 md:p-16">
+                <h3 className="text-3xl font-black text-emerald-900 mb-2 text-center">Kuuntelutehtävä {idx + 1}</h3>
+                <AudioPlayer text={task.audioPrompt} variant="bar" />
+                <div className="space-y-12 mt-12">
+                  {task.questions.map(q => (
+                    <div key={q.id} className="space-y-8">
+                      <p className="font-black text-slate-900 text-2xl">{q.text}</p>
+                      <div className="grid gap-4">
+                        {q.options?.map(opt => (
+                          <label key={opt} className={`flex items-center p-6 rounded-3xl border-2 transition-all cursor-pointer ${
+                            isSubmitted && opt === q.correctAnswer ? 'bg-emerald-50 border-emerald-500' :
+                            userAnswers.listening[q.id] === opt ? 'bg-emerald-50 border-emerald-400' : 'hover:bg-slate-50 border-slate-200'
+                          }`}>
+                            <input type="radio" checked={userAnswers.listening[q.id] === opt} onChange={() => setUserAnswers(p => ({...p, listening: {...p.listening, [q.id]: opt}}))} disabled={isSubmitted} className="w-6 h-6 text-emerald-600" />
+                            <span className="ml-5 text-xl font-bold">{opt}</span>
+                          </label>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-
-                  {isSubmitted && (
-                    <div className="mt-16 p-12 bg-slate-50 rounded-[2.5rem] border-2 border-slate-200 shadow-inner">
-                      <h4 className="flex items-center gap-4 font-black text-slate-900 mb-8 text-2xl tracking-tight">
-                        <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414(5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        Nauhoitteen teksti:
-                      </h4>
-                      <p className="text-slate-800 italic leading-relaxed whitespace-pre-wrap text-2xl bg-white p-10 rounded-3xl border-2 border-slate-100 font-medium">
-                        {task.transcript}
-                      </p>
                     </div>
-                  )}
+                  ))}
                 </div>
+                {isSubmitted && <div className="mt-12 p-8 bg-emerald-50 rounded-3xl text-emerald-900 italic font-medium">{task.transcript}</div>}
               </div>
             ))}
-          </section>
+          </div>
         )}
 
-        {/* Writing Section */}
         {activePart === TestPart.WRITING && (
-          <section className="space-y-12 animate-in fade-in duration-300">
-            {test.writing.map((task, taskIdx) => (
-              <div key={taskIdx} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-50 p-8 border-b border-slate-200">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">Kirjoittaminen {taskIdx + 1}</h3>
+          <div className="space-y-12 animate-in fade-in duration-500">
+            {test.writing.map((task, idx) => (
+              <div key={idx} className="bg-white rounded-[3rem] shadow-xl border border-emerald-100 p-10 md:p-16 space-y-10">
+                <div className="bg-emerald-50 p-10 rounded-[2.5rem] border-2 border-emerald-100">
+                  <h3 className="text-3xl font-black text-emerald-900 mb-2">{task.prompt}</h3>
+                  <p className="text-emerald-700 font-bold">{task.context}</p>
                 </div>
-                <div className="p-8 md:p-14 space-y-10">
-                  <div className="bg-blue-50 p-8 rounded-3xl border-2 border-blue-100 text-blue-900 shadow-sm">
-                    <p className="font-black text-3xl mb-3 tracking-tight">{task.prompt}</p>
-                    <p className="text-blue-700 font-bold text-lg">{task.context}</p>
-                  </div>
-                  
+                <div className="relative">
                   <textarea
                     rows={12}
-                    className="w-full p-10 border-2 border-slate-200 rounded-[2rem] focus:ring-8 focus:ring-blue-500/10 focus:border-blue-500 disabled:bg-slate-50 text-2xl transition-all leading-relaxed font-medium shadow-inner"
-                    placeholder="Kirjoita tähän vastauksesi..."
+                    className="w-full p-10 border-4 border-slate-100 rounded-[2.5rem] focus:border-emerald-500 focus:ring-8 focus:ring-emerald-100 transition-all text-2xl font-medium outline-none"
+                    placeholder="Kirjoita tähän..."
+                    value={userAnswers.writing[idx] || ""}
+                    onChange={e => setUserAnswers(p => ({...p, writing: {...p.writing, [idx]: e.target.value}}))}
                     disabled={isSubmitted}
-                    value={userAnswers.writing[taskIdx]}
-                    onChange={(e) => handleWritingChange(taskIdx, e.target.value)}
                   />
-
-                  {isSubmitted && (
-                    <div className="mt-14 p-12 bg-green-50 rounded-[2.5rem] border-2 border-green-200 shadow-2xl shadow-green-900/10 scale-[1.01]">
-                      <div className="flex items-center gap-4 mb-8">
-                        <span className="w-12 h-12 rounded-2xl bg-green-200 flex items-center justify-center shadow-md rotate-2">
-                           <svg className="w-8 h-8 text-green-700" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                        </span>
-                        <h4 className="font-black text-green-900 text-3xl tracking-tight">Mallivastaus</h4>
-                      </div>
-                      <div className="text-green-900 whitespace-pre-wrap leading-relaxed text-2xl bg-white/80 p-10 rounded-3xl border-2 border-green-100 font-medium">
-                        {task.sampleModelAnswer}
-                      </div>
-                    </div>
-                  )}
+                  <div className="absolute bottom-6 right-10 text-slate-400 font-black text-sm">
+                    {(userAnswers.writing[idx] || "").length} merkkiä
+                  </div>
                 </div>
+                {isSubmitted && (
+                  <div className="p-10 bg-emerald-900 text-white rounded-[2.5rem] shadow-inner">
+                    <p className="font-black mb-4 text-xl uppercase tracking-widest text-emerald-300">Mallivastaus:</p>
+                    <p className="text-2xl font-medium leading-relaxed">{task.sampleModelAnswer}</p>
+                  </div>
+                )}
               </div>
             ))}
-          </section>
+          </div>
         )}
 
-        {/* Speaking Section */}
         {activePart === TestPart.SPEAKING && (
-          <section className="space-y-12 animate-in fade-in duration-300">
-            {test.speaking.map((task, taskIdx) => (
-              <div key={taskIdx} className="bg-white rounded-[2.5rem] shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-50 p-8 border-b border-slate-200">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight">Puhuminen {taskIdx + 1}</h3>
+          <div className="space-y-12 animate-in fade-in duration-500">
+            {test.speaking.map((task, idx) => (
+              <div key={idx} className="bg-white rounded-[3rem] shadow-xl border border-emerald-100 p-10 md:p-16 text-center space-y-10">
+                <h3 className="text-3xl font-black text-emerald-900">Puhetehtävä {idx + 1}</h3>
+                <div className="bg-slate-50 p-12 rounded-[2.5rem] border-4 border-dashed border-emerald-100">
+                  <p className="text-4xl font-black text-slate-800 mb-6">{task.prompt}</p>
+                  <p className="text-2xl text-slate-500 font-bold leading-relaxed">{task.context}</p>
                 </div>
-                <div className="p-8 md:p-14 space-y-10">
-                  <div className="bg-indigo-50 p-10 rounded-3xl border-2 border-indigo-100 text-indigo-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
-                    <div className="flex-1">
-                      <p className="font-black text-3xl mb-3 tracking-tight">{task.prompt}</p>
-                      <p className="text-indigo-700 font-bold text-lg leading-relaxed">{task.context}</p>
-                    </div>
-                    <div className="flex-shrink-0">
-                       <AudioPlayer text={task.prompt} />
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col items-center justify-center p-20 border-4 border-dashed border-slate-200 rounded-[2.5rem] bg-slate-50 group hover:border-blue-300 transition-all hover:bg-white">
-                    <button className="p-14 rounded-full bg-red-100 text-red-600 hover:bg-red-200 hover:scale-110 transition-all mb-10 shadow-2xl active:scale-95 border-8 border-white ring-4 ring-red-50">
-                      <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" /></svg>
-                    </button>
-                    <p className="text-slate-600 font-black uppercase tracking-[0.2em] text-lg">Puhu nyt</p>
-                    <p className="text-slate-400 text-base mt-4 font-bold">Äänitystä ei tallenneta – harjoittele vapaasti.</p>
-                  </div>
-
-                  {isSubmitted && (
-                    <div className="mt-14 p-12 bg-indigo-50/50 rounded-[2.5rem] border-2 border-indigo-100 shadow-sm">
-                      <h4 className="font-black text-indigo-900 mb-6 flex items-center gap-4 text-2xl tracking-tight">
-                        <svg className="w-8 h-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        Palaute ja itsearviointi:
-                      </h4>
-                      <div className="space-y-6 text-indigo-900 text-xl leading-relaxed font-medium">
-                        <p>Kokeile puhua vastaus uudelleen ja kiinnitä huomiota:</p>
-                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <li className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
-                            <span className="w-3 h-3 bg-indigo-500 rounded-full"></span> Ääntäminen
-                          </li>
-                          <li className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
-                            <span className="w-3 h-3 bg-indigo-500 rounded-full"></span> Sujuvuus
-                          </li>
-                          <li className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
-                            <span className="w-3 h-3 bg-indigo-500 rounded-full"></span> Rakenteet
-                          </li>
-                          <li className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
-                            <span className="w-3 h-3 bg-indigo-500 rounded-full"></span> Sanasto
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  )}
+                <div className="flex flex-col items-center gap-6 py-10">
+                   <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
+                      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                   </div>
+                   <div className="space-y-2">
+                     <p className="text-slate-600 font-black uppercase tracking-widest text-sm">Harjoittele ääneen</p>
+                     <p className="text-slate-400 text-base font-bold italic">Koe on simulaatio – tallennusta ei tarvita.</p>
+                   </div>
                 </div>
               </div>
             ))}
-          </section>
+          </div>
         )}
-      </main>
 
-      {/* Footer Nav Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 p-6 md:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50">
-        <div className="flex justify-between items-center max-w-lg mx-auto">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{activePart}</span>
-          {!isSubmitted ? (
-            <button 
-              onClick={handleSubmit}
-              className="px-12 py-4 bg-blue-600 text-white font-black rounded-full shadow-xl active:scale-95 transition-all text-sm uppercase tracking-wider"
-            >
-              Palauta
-            </button>
-          ) : (
-            <button 
-              onClick={resetTest}
-              className="px-12 py-4 bg-slate-800 text-white font-black rounded-full shadow-xl active:scale-95 transition-all text-sm uppercase tracking-wider"
-            >
-              Alkuun
-            </button>
-          )}
+        {/* Ala-navigointi */}
+        <div className="mt-16 flex justify-between items-center px-4">
+           <button 
+             onClick={() => goToPart('prev')} 
+             disabled={partOrder.indexOf(activePart) === 0}
+             className="flex items-center gap-3 font-black text-emerald-700 disabled:opacity-20 hover:translate-x-[-8px] transition-all group"
+           >
+             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
+             </div>
+             EDELLINEN OSA
+           </button>
+           
+           <button 
+             onClick={() => goToPart('next')} 
+             disabled={partOrder.indexOf(activePart) === partOrder.length - 1}
+             className="flex items-center gap-3 font-black text-emerald-700 disabled:opacity-20 hover:translate-x-[8px] transition-all group"
+           >
+             SEURAAVA OSA
+             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
+             </div>
+           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

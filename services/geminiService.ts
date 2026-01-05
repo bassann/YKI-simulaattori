@@ -2,18 +2,16 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { TestLevel, FullTest } from "../types";
 
-const API_KEY = process.env.API_KEY || "";
-
 export const generateTestContent = async (level: TestLevel): Promise<FullTest> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
-  // Using gemini-3-pro-preview for more robust complex JSON generation
+  // Always create a fresh instance right before use to capture the latest session key
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
+    model: "gemini-3-flash-preview",
     contents: `Generate a full, realistic Finnish YKI mock test for level: ${level}. 
     
     CRITICAL RULES for Listening Tasks:
     - The 'audioPrompt' MUST be a clean script of ONLY the Finnish text to be read.
-    - DO NOT include stage directions like [nainen puhuu] or [tauko].
     - It must start with an introduction: 'Tehtävä 1. Kuuntele seuraava teksti ja vastaa kysymyksiin.'
     - The main content must be a substantial passage (dialogue, news, or announcement).
     - Length: Perustaso ~50-70 words, Keskitaso ~100-130 words.
@@ -112,13 +110,11 @@ export const generateTestContent = async (level: TestLevel): Promise<FullTest> =
 };
 
 export const generateAudio = async (text: string): Promise<Uint8Array> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // The TTS model can be sensitive to prompt style. 
-  // We wrap the text to ensure it's treated purely as speech input.
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
-    contents: [{ parts: [{ text: `Lue tämä teksti suomeksi: ${text}` }] }],
+    contents: [{ parts: [{ text: text }] }],
     config: {
       responseModalities: [Modality.AUDIO],
       speechConfig: {
@@ -131,12 +127,7 @@ export const generateAudio = async (text: string): Promise<Uint8Array> => {
 
   const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   if (!base64Audio) {
-    // Check if the model returned text instead of audio
-    const part = response.candidates?.[0]?.content?.parts?.[0];
-    if (part?.text) {
-      console.error("Model returned text instead of audio:", part.text);
-    }
-    throw new Error("Äänen generointi epäonnistui (ei audiodataa)");
+    throw new Error("No audio data returned from model");
   }
   
   return decode(base64Audio);
@@ -158,11 +149,7 @@ export async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  // Ensure the byte length is even for Int16Array (PCM 16-bit)
-  const safeLength = data.byteLength - (data.byteLength % 2);
-  const bufferToUse = data.buffer.slice(0, safeLength);
-
-  const dataInt16 = new Int16Array(bufferToUse);
+  const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
