@@ -79,7 +79,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
           <div className="flex-1 space-y-2">
             <div className="flex justify-between items-center mb-1">
               <span className="text-emerald-900 font-black uppercase tracking-widest text-[10px]">Ääniraita</span>
-              <span className="text-slate-400 font-bold text-[10px]">{playing ? 'Toistetaan...' : loading ? 'Ladataan...' : 'Valmis'}</span>
+              <span className="text-slate-400 font-bold text-[10px]">
+                {playing ? 'Toistetaan...' : loading ? 'Ladataan...' : 'Valmis'}
+              </span>
             </div>
             <div className="h-3 bg-slate-200 rounded-full overflow-hidden relative">
               {playing && (
@@ -90,6 +92,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
                 style={{ transitionDuration: playing ? '60s' : '0.3s' }}
               ></div>
             </div>
+            {loading && (
+              <p className="text-[10px] text-emerald-600 font-bold animate-pulse">Äänen valmistelu voi kestää hetken...</p>
+            )}
           </div>
         </div>
       </div>
@@ -97,7 +102,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
   }
 
   return (
-    <div className="flex justify-center w-full my-6">
+    <div className="flex flex-col items-center justify-center w-full my-6 gap-4">
       <button
         onClick={handlePlay}
         disabled={loading}
@@ -128,6 +133,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ text, variant = 'button' }) =
           </>
         )}
       </button>
+      {loading && (
+        <p className="text-sm text-emerald-600 font-bold animate-pulse">Äänen valmistelu voi kestää hetken...</p>
+      )}
     </div>
   );
 };

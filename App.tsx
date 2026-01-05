@@ -88,7 +88,7 @@ const App: React.FC = () => {
 
   if (!level) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-emerald-50">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white">
         <header className="text-center mb-12">
           <div className="w-24 h-24 bg-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl transform rotate-3">
              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -130,21 +130,24 @@ const App: React.FC = () => {
 
   if (loading || !test) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-emerald-50 text-center">
-        <div className="w-20 h-20 border-8 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-8"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-white text-center">
+        <div className="w-20 h-20 border-8 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-8"></div>
         <h2 className="text-4xl font-black text-emerald-900 tracking-tight">Rakennetaan koetta...</h2>
-        <p className="text-emerald-700 font-bold mt-2">Gemini-tekoäly luo tehtäviä tasolle {level}.</p>
+        <div className="mt-6 space-y-2">
+          <p className="text-emerald-700 font-bold">Gemini-tekoäly luo tehtäviä tasolle {level}.</p>
+          <p className="text-emerald-600/60 font-medium animate-pulse">Sisällön luominen voi kestää noin minuutin. Ole hyvä ja odota.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-emerald-50/30 pb-32">
-      <nav className="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-emerald-100 z-50 px-6 py-4">
+    <div className="min-h-screen bg-white pb-32">
+      <nav className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-emerald-100 z-50 px-6 py-4">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <button onClick={() => setLevel(null)} className="text-emerald-700 font-black text-3xl tracking-tighter hover:scale-105 transition-transform">SuomiPolku</button>
           
-          <div className="flex gap-2 bg-emerald-100/50 p-1.5 rounded-2xl overflow-x-auto w-full md:w-auto">
+          <div className="flex gap-2 bg-emerald-50 p-1.5 rounded-2xl overflow-x-auto w-full md:w-auto">
             {partOrder.map(part => (
               <button
                 key={part}
@@ -241,7 +244,7 @@ const App: React.FC = () => {
                 <div className="relative">
                   <textarea
                     rows={12}
-                    className="w-full p-10 border-4 border-slate-100 rounded-[2.5rem] focus:border-emerald-500 focus:ring-8 focus:ring-emerald-100 transition-all text-2xl font-medium outline-none"
+                    className="w-full p-10 border-4 border-slate-50 rounded-[2.5rem] focus:border-emerald-500 focus:ring-8 focus:ring-emerald-100 transition-all text-2xl font-medium outline-none bg-slate-50/30"
                     placeholder="Kirjoita tähän..."
                     value={userAnswers.writing[idx] || ""}
                     onChange={e => setUserAnswers(p => ({...p, writing: {...p.writing, [idx]: e.target.value}}))}
@@ -272,7 +275,7 @@ const App: React.FC = () => {
                   <p className="text-2xl text-slate-500 font-bold leading-relaxed">{task.context}</p>
                 </div>
                 <div className="flex flex-col items-center gap-6 py-10">
-                   <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
+                   <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
                       <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                    </div>
                    <div className="space-y-2">
@@ -292,7 +295,7 @@ const App: React.FC = () => {
              disabled={partOrder.indexOf(activePart) === 0}
              className="flex items-center gap-3 font-black text-emerald-700 disabled:opacity-20 hover:translate-x-[-8px] transition-all group"
            >
-             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+             <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
              </div>
              EDELLINEN OSA
@@ -304,7 +307,7 @@ const App: React.FC = () => {
              className="flex items-center gap-3 font-black text-emerald-700 disabled:opacity-20 hover:translate-x-[8px] transition-all group"
            >
              SEURAAVA OSA
-             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+             <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
              </div>
            </button>
