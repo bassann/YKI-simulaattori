@@ -6,23 +6,24 @@ const API_KEY = process.env.API_KEY || "";
 
 export const generateTestContent = async (level: TestLevel): Promise<FullTest> => {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
+  // Using gemini-3-pro-preview for more robust complex JSON generation
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3-pro-preview",
     contents: `Generate a full, realistic Finnish YKI mock test for level: ${level}. 
     
     CRITICAL RULES for Listening Tasks:
-    - The 'audioPrompt' MUST be a complete script for a TTS engine. 
-    - It must start with an introduction (e.g., 'Tehtävä 1. Kuuntele seuraava keskustelu ja vastaa kysymyksiin.').
-    - The main content must be a substantial passage (dialogue, news report, or announcement) containing specific details that allow answering 3 separate multiple-choice questions.
-    - For Perustaso, the passage should be ~60 words. For Keskitaso, ~120 words.
-    - Do NOT just generate a single sentence.
+    - The 'audioPrompt' MUST be a clean script of ONLY the Finnish text to be read.
+    - DO NOT include stage directions like [nainen puhuu] or [tauko].
+    - It must start with an introduction: 'Tehtävä 1. Kuuntele seuraava teksti ja vastaa kysymyksiin.'
+    - The main content must be a substantial passage (dialogue, news, or announcement).
+    - Length: Perustaso ~50-70 words, Keskitaso ~100-130 words.
     
     CRITICAL RULES for Other Tasks:
-    - 2 Reading tasks: Title, long text (~150-300 words), and 3 multiple choice questions.
-    - 2 Writing tasks: A prompt (e.g., email to a landlord) and a high-quality model answer for comparison.
-    - 2 Speaking tasks: A scenario for the user to respond to.
+    - 2 Reading tasks: Title, text (~150-300 words), and 3 multiple choice questions.
+    - 2 Writing tasks: A clear prompt and a high-quality model answer.
+    - 2 Speaking tasks: A scenario for the user.
     
-    Ensure all Finnish language used is appropriate for the ${level} level.`,
+    Ensure all Finnish language is at the ${level} level.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -59,8 +60,8 @@ export const generateTestContent = async (level: TestLevel): Promise<FullTest> =
             items: {
               type: Type.OBJECT,
               properties: {
-                transcript: { type: Type.STRING, description: "The full text version of the audio for review." },
-                audioPrompt: { type: Type.STRING, description: "The full script to be read by TTS, including intro and content." },
+                transcript: { type: Type.STRING },
+                audioPrompt: { type: Type.STRING },
                 questions: {
                   type: Type.ARRAY,
                   items: {
@@ -112,9 +113,12 @@ export const generateTestContent = async (level: TestLevel): Promise<FullTest> =
 
 export const generateAudio = async (text: string): Promise<Uint8Array> => {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
+  
+  // The TTS model can be sensitive to prompt style. 
+  // We wrap the text to ensure it's treated purely as speech input.
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
-    contents: [{ parts: [{ text: text }] }],
+    contents: [{ parts: [{ text: `Lue tämä teksti suomeksi: ${text}` }] }],
     config: {
       responseModalities: [Modality.AUDIO],
       speechConfig: {
@@ -126,7 +130,14 @@ export const generateAudio = async (text: string): Promise<Uint8Array> => {
   });
 
   const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("No audio data generated");
+  if (!base64Audio) {
+    // Check if the model returned text instead of audio
+    const part = response.candidates?.[0]?.content?.parts?.[0];
+    if (part?.text) {
+      console.error("Model returned text instead of audio:", part.text);
+    }
+    throw new Error("Äänen generointi epäonnistui (ei audiodataa)");
+  }
   
   return decode(base64Audio);
 };
@@ -147,10 +158,9 @@ export async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  // Ensure the byte length is even for Int16Array
-  const bufferToUse = data.byteLength % 2 === 0 
-    ? data.buffer 
-    : data.slice(0, data.byteLength - 1).buffer;
+  // Ensure the byte length is even for Int16Array (PCM 16-bit)
+  const safeLength = data.byteLength - (data.byteLength % 2);
+  const bufferToUse = data.buffer.slice(0, safeLength);
 
   const dataInt16 = new Int16Array(bufferToUse);
   const frameCount = dataInt16.length / numChannels;
