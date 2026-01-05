@@ -2,10 +2,10 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { TestLevel, FullTest } from "../types";
 
-const API_KEY = process.env.VITE_API_KEY || "";
+const API_KEY = process.env.API_KEY || "";
 
 export const generateTestContent = async (level: TestLevel): Promise<FullTest> => {
-  const ai = new GoogleGenAI({ apiKey: VITE_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   // Using gemini-3-pro-preview for more robust complex JSON generation
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
@@ -112,7 +112,7 @@ export const generateTestContent = async (level: TestLevel): Promise<FullTest> =
 };
 
 export const generateAudio = async (text: string): Promise<Uint8Array> => {
-  const ai = new GoogleGenAI({ apiKey: VITE_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
   
   // The TTS model can be sensitive to prompt style. 
   // We wrap the text to ensure it's treated purely as speech input.
